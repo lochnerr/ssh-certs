@@ -43,6 +43,7 @@ fi
 cp /root/host_ca_key.pub /etc/ssh/
 
 test "Certificate authority configured in .ssh/known_hosts with certificate text"
+mkdir -p .ssh
 echo "@cert-authority *.example.com $(cat /etc/ssh/host_ca_key.pub)" >.ssh/known_hosts
 echo "Created .ssh/known_hosts with the following contents:"
 cat .ssh/known_hosts

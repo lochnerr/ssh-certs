@@ -2,7 +2,9 @@ ARG DISTRO=fedora
 ARG RELEASE=latest
 FROM $DISTRO:$RELEASE
 
-RUN microdnf -y install --nodocs openssh-server openssh-clients && \
+RUN dnf="microdnf" && if command -v dnf ; then dnf="dnf" ; fi && export $dnf && \
+    #
+    $dnf -y install --nodocs openssh-server openssh-clients && \
     #
     # Create host and user certificate authority keys for testing.
     #
