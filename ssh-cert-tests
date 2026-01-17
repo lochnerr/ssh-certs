@@ -115,9 +115,10 @@ ssh-keygen -s user_ca_key -I client1@example.com  -n user1,user2 -V +14d .ssh/id
 echo
 ls -l .ssh
 
+delay="35"
 echo
-echo "Delaying to avoid max startup errors."
-sleep 35s
+echo "Delaying for $delay seconds to avoid max startup errors."
+sleep $delay
 
 test "Secure shell into user1 account with default (ed25519) key."
 echo "ssh -vv $USER@$HOST_SHORT \"$COMMAND\""

@@ -2,64 +2,58 @@ ARG DISTRO=fedora
 ARG RELEASE=latest
 FROM $DISTRO:$RELEASE
 
+# Build a ssh server host for testing ssh certificates.
+
 RUN dnf="microdnf" && if command -v dnf ; then dnf="dnf" ; fi && export $dnf && \
-    #
+
     $dnf -y install --nodocs openssh-server openssh-clients && \
-    #
+
     # Create host and user certificate authority keys for testing.
-    #
+
     ssh-keygen -t ed25519 -N '' -f /root/host_ca_key -C host_ca_key && \
     ssh-keygen -t ed25519 -N '' -f /root/user_ca_key -C user_ca_key && \
-    #
+
     # Create the host keys.
-    #
+
     ssh-keygen -t rsa     -N '' -f /etc/ssh/ssh_host_rsa_key     -C ssh-host.example.com && \
     ssh-keygen -t ed25519 -N '' -f /etc/ssh/ssh_host_ed25519_key -C ssh-host.example.com && \
     ssh-keygen -t ecdsa   -N '' -f /etc/ssh/ssh_host_ecdsa_key   -C ssh-host.example.com && \
-    #
+
     # Create the host certificates (sign the public keys).
-    #
+
     ssh-keygen -s /root/host_ca_key -I ssh-host.example.com -n ssh-host.example.com,ssh-host.example.com:2222 -h -V -1d:+54w /etc/ssh/ssh_host_rsa_key.pub && \
     ssh-keygen -s /root/host_ca_key -I ssh-host.example.com -n ssh-host.example.com,ssh-host.example.com:2222 -h -V -1d:+54w /etc/ssh/ssh_host_ed25519_key.pub && \
     ssh-keygen -s /root/host_ca_key -I ssh-host.example.com -n ssh-host.example.com,ssh-host.example.com:2222 -h -V -1d:+54w /etc/ssh/ssh_host_ecdsa_key.pub && \
-    #
+
     # Configure the server to present the host certificates.
-    #
+
     echo "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub"     | tee    /etc/ssh/sshd_config.d/60-host-certificate.conf && \
     echo "HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub" | tee -a /etc/ssh/sshd_config.d/60-host-certificate.conf && \
     echo "HostCertificate /etc/ssh/ssh_host_ecdsa_key-cert.pub"   | tee -a /etc/ssh/sshd_config.d/60-host-certificate.conf && \
-    #
+
     # Copy the user certificate authority public key to the ssh directory.
-    #
+
     cp /root/user_ca_key.pub /etc/ssh/ && \
-    #
+
     # Configure the server to trust keys signed by the user certificate authority.
-    #
+
     echo "TrustedUserCAKeys /etc/ssh/user_ca_key.pub" | tee /etc/ssh/sshd_config.d/65-trusted-users.conf && \
-    #
+
     # Increase max auth tries for testing. 
-    #
+
     echo "MaxAuthTries 20" | tee -a /etc/ssh/sshd_config.d/65-trusted-users.conf && \
-    #
+
     # Verify the configuration.
-    #
+
     /usr/sbin/sshd -t && \
-    #
+
     ls -lt /etc/ssh && \
-    #
+
     # Create test users.
-    #
+
     useradd -c "client1" -m user1       && \
-    mkdir -p /home/user1/.ssh           && \
-    chown user1:user1 /home/user1/.ssh  && \
-    chmod 700         /home/user1/.ssh  && \
-    ssh-keygen -t ed25519 -N '' -f /home/user1/.ssh/id_rsa -C user1 && \
-    ssh-keygen -s /root/user_ca_key -I user1 -n user1 -h -V -1d:+54w /home/user1/.ssh/id_rsa.pub && \
     useradd -c "client2" -m user2       && \
-    mkdir -p /home/user2/.ssh           && \
-    chown user2:user2 /home/user2/.ssh  && \
-    chmod 700         /home/user2/.ssh  && \
-    #
+
     echo "Done!"
 
 COPY ssh-cert-tests /usr/local/bin
@@ -68,7 +62,6 @@ COPY ssh-cert-tests /usr/local/bin
 EXPOSE 22
 
 # Run ssh in the foreground.
-#CMD ["/usr/sbin/sshd", "-D", "-e"]
 CMD ["/usr/sbin/sshd", "-D"]
 
 # Set the build labels.
