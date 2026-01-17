@@ -1,0 +1,130 @@
+#!/bin/sh
+
+# ssh-cert-tests: Run tests to verify certificate authentication.
+
+USER="user1"
+HOST_SHORT="ssh-host"
+HOST="$HOST_SHORT.example.com"
+COMMAND="date"
+
+test() {
+	[ -z "$tests" ] && tests="0"
+	tests=$((tests+1))
+	echo
+	echo "Test $tests: $*"
+	>/tmp/output
+}
+
+success() {
+	echo "Success: $*"
+}
+
+failure() {
+	msg="$*"
+	[ -z "$msg" ] && msg="Test failed."
+	echo "Failure: $msg"
+	cat /tmp/output
+}
+
+# Let the ssh host have a time to initialize.
+sleep 1s
+echo "Performing server host certificate validation tests."
+
+cd /root
+
+test "No cert-authority directive"
+echo "ssh -v $USER@$HOST"
+ssh -v $USER@$HOST >/tmp/output 2>&1
+if grep "Host key verification failed." /tmp/output ; then
+	success "Command failed, no host key certificate."
+fi
+
+# This is needed for other tests?
+cp /root/host_ca_key.pub /etc/ssh/
+
+test "Certificate authority configured in .ssh/known_hosts with certificate text"
+echo "@cert-authority *.example.com $(cat /etc/ssh/host_ca_key.pub)" >.ssh/known_hosts
+echo "Created .ssh/known_hosts with the following contents:"
+cat .ssh/known_hosts
+
+echo "ssh -v $USER@$HOST"
+ssh -v $USER@$HOST >/tmp/output 2>&1
+if grep "Host '$HOST' is known and matches the .* host certificate." /tmp/output ; then
+	success "Specified hostname matches the host certificate."
+else
+	failure
+fi
+
+echo
+echo "Removing .ssh/known_hosts file."
+rm .ssh/known_hosts
+
+test "Certificate authority configured in /etc/ssh/known_hosts with certificate text"
+echo "@cert-authority *.example.com $(cat /etc/ssh/host_ca_key.pub)" >/etc/ssh/ssh_known_hosts
+echo "Creating /etc/ssh/ssh_known_hosts with the following contents:"
+cat /etc/ssh/ssh_known_hosts
+
+echo "ssh -v $USER@$HOST"
+ssh -v $USER@$HOST >/tmp/output 2>&1
+if grep "Host '$HOST' is known and matches the .* host certificate." /tmp/output ; then
+	success "Host identification matches."
+else
+	failure
+fi
+
+test "Short hostname without CanonicalHostname directive"
+echo "ssh -v $USER@$HOST_SHORT"
+ssh -v $USER@$HOST_SHORT >/tmp/output 2>&1
+if grep "Host key verification failed." /tmp/output ; then
+	success "Command failed, no hostname in certificate for short hostname."
+else
+	failure
+fi
+
+echo
+echo "Creating file /etc/ssh/ssh_config.d/30-short-hostnames.conf with contents:"
+echo "CanonicalizeHostname yes"           >/etc/ssh/ssh_config.d/30-short-hostnames.conf
+echo "CanonicalDomains     example.com"  >>/etc/ssh/ssh_config.d/30-short-hostnames.conf
+cat /etc/ssh/ssh_config.d/30-short-hostnames.conf
+
+test "Short hostname with CanonicalHostname directives"
+echo "ssh -v $USER@$HOST_SHORT"
+ssh -v $USER@$HOST_SHORT >/tmp/output 2>&1
+if grep "Host '$HOST' is known and matches the .* host certificate." /tmp/output ; then
+	success "Canonicalized Host identification matches."
+else
+	failure
+fi
+
+echo
+echo "Performing client certificate authorization teets."
+
+echo
+echo "Create the client keys."
+echo
+ssh-keygen -t ed25519 -N '' -f .ssh/id_ed25519 -C user1
+
+echo
+echo "Sign client keys with a command similar to the following:"
+echo
+echo "ssh-keygen -s user_ca_key -I client1@example.com  -n user1,user2 -V +7d .ssh/id_ed25519.pub"
+echo
+ssh-keygen -s user_ca_key -I client1@example.com  -n user1,user2 -V +14d .ssh/id_ed25519.pub
+
+echo
+ls -l .ssh
+
+echo
+echo "Delaying to avoid max startup errors."
+sleep 35s
+
+test "Secure shell into user1 account with default (ed25519) key."
+echo "ssh -vv $USER@$HOST_SHORT \"$COMMAND\""
+ssh $USER@$HOST_SHORT "$COMMAND"
+rc="$?"
+if [ "$rc" = "0" ]; then
+	success "Login to user1 account."
+else
+	failure
+fi
+

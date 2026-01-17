@@ -1,0 +1,19 @@
+# Automated test and build compose file for ssh-certs.
+
+services:
+  ssh-host:
+    hostname: ssh-host.example.com
+    image: lochnerr/ssh-certs:${DISTRO:-fedora}-${RELEASE:-latest}
+  sut:
+    build:
+      dockerfile: Dockerfile-${DISTRO:-fedora}
+      args:
+        RELEASE: ${RELEASE:-latest}
+    image: lochnerr/ssh-certs:${DISTRO:-fedora}-${RELEASE:-latest}
+    command: /usr/local/bin/ssh-cert-tests
+    volumes:
+      - share:/unittest:z
+
+volumes:
+  share:
+
