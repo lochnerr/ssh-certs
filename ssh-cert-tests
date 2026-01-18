@@ -26,6 +26,16 @@ failure() {
 	cat /tmp/output
 }
 
+# Install the openssh client.
+if [ -x /usr/bin/apt-get ]; then
+	apt-get update
+	apt-get install -y openssh-client
+elif  [ -x /usr/bin/dnf ]; then
+	dnf install -y openssh-clients
+else
+	microdnf install -y openssh-clients
+fi
+
 # Let the ssh host have a time to initialize.
 sleep 1s
 echo "Performing server host certificate validation tests."

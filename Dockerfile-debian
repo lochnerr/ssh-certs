@@ -1,12 +1,12 @@
-ARG DISTRO=fedora
+ARG DISTRO=debian
 ARG RELEASE=latest
 FROM $DISTRO:$RELEASE
 
 # Build a ssh server host for testing ssh certificates.
 
-RUN dnf="microdnf" && if command -v dnf ; then dnf="dnf" ; fi && export $dnf && \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
 
-    $dnf install -y --nodocs openssh-server && \
+    apt-get install -y openssh-server && \
 
     # Create host and user certificate authority keys for testing.
 
