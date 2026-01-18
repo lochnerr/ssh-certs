@@ -39,12 +39,9 @@ if grep "Host key verification failed." /tmp/output ; then
 	success "Command failed, no host key certificate."
 fi
 
-# This is needed for other tests?
-cp /root/host_ca_key.pub /etc/ssh/
-
 test "Certificate authority configured in .ssh/known_hosts with certificate text"
 mkdir -p .ssh
-echo "@cert-authority *.example.com $(cat /etc/ssh/host_ca_key.pub)" >.ssh/known_hosts
+echo "@cert-authority *.example.com $(cat /root/host_ca_key.pub)" >.ssh/known_hosts
 echo "Created .ssh/known_hosts with the following contents:"
 cat .ssh/known_hosts
 
@@ -56,19 +53,14 @@ else
 	failure
 fi
 
-echo
-echo "Removing .ssh/known_hosts file."
-rm .ssh/known_hosts
-
 test "Certificate authority configured in /etc/ssh/known_hosts with certificate text"
-echo "@cert-authority *.example.com $(cat /etc/ssh/host_ca_key.pub)" >/etc/ssh/ssh_known_hosts
-echo "Creating /etc/ssh/ssh_known_hosts with the following contents:"
-cat /etc/ssh/ssh_known_hosts
+mv -f  .ssh/known_hosts /etc/ssh/ssh_known_hosts
+echo "Moved .ssh/known_hosts file to /etc/ssh/ssh_known_hosts."
 
 echo "ssh -v $USER@$HOST"
 ssh -v $USER@$HOST >/tmp/output 2>&1
 if grep "Host '$HOST' is known and matches the .* host certificate." /tmp/output ; then
-	success "Host identification matches."
+	success "Specified hostname matches the host certificate."
 else
 	failure
 fi
@@ -111,9 +103,6 @@ echo
 echo "ssh-keygen -s user_ca_key -I client1@example.com  -n user1,user2 -V +7d .ssh/id_ed25519.pub"
 echo
 ssh-keygen -s user_ca_key -I client1@example.com  -n user1,user2 -V +14d .ssh/id_ed25519.pub
-
-echo
-ls -l .ssh
 
 delay="35"
 echo
